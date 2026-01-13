@@ -1,0 +1,35 @@
+name: "🚀 Build image and deploy production (k8s)"
+
+on:
+  release:
+    types: [ created ]
+
+jobs:
+  prepare:
+    uses: infomediji/workflows/.github/workflows/prepare_vars.yml@v2
+    with:
+      ref: ${{ github.ref }}
+      project_name: wsp
+      check_changed_files: false
+
+  build-and-deploy:
+    needs: [prepare]
+    uses: infomediji/workflows/.github/workflows/build_and_push_docr.yml@v2.32
+    with:
+      project_name: ${{ needs.prepare.outputs.project_name }}
+      docker_file: .github/docker/Dockerfile
+      branch: ${{ needs.prepare.outputs.branch }}
+      php_version: "8.1.31"
+      cache_enabled: false
+    secrets:
+      registry_token: ${{ secrets.DO_ACCESS_TOKEN_DOCKER_REGISTRY_INFOMEDIJI }}
+      backend_composer_token: ${{ secrets.GITHUB_TOKEN }}
+
+  slack-notification:
+    needs: [ build-and-deploy ]
+    uses: infomediji/workflows/.github/workflows/slack-announcement.yml@v2.32
+    with:
+      project_name: ${{ needs.prepare.outputs.project_name }}
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.RELEASE_LOG_SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL_ID: ${{ secrets.RELEASE_LOG_SLACK_CHANNEL_ID }}

@@ -1,0 +1,29 @@
+name: "🔄 Build, code check, deploy to staging"
+
+on:
+  workflow_dispatch: { }
+  push:
+    branches:
+      - 'master'
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  prepare:
+    uses: infomediji/workflows/.github/workflows/prepare_vars.yml@v2
+    with:
+      ref: ${{ github.head_ref || github.ref }}
+      project_name: "wsp"
+      check_changed_files: true
+
+  build:
+    needs: [ prepare ]
+    uses: infomediji/workflows/.github/workflows/build_and_push_ghcr.yml@v2.32
+    with:
+      docker_file: .github/docker/Dockerfile
+      branch: ${{ needs.prepare.outputs.branch }}
+      project_name: ${{ needs.prepare.outputs.project_name }}
+      php_version: '8.1.31'
+      cache_enabled: false
+    secrets:
+      backend_composer_token: ${{ secrets.GITHUB_TOKEN }}
